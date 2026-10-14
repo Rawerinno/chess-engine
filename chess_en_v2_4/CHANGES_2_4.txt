@@ -1,0 +1,91 @@
+Barromax 2.4 - revisão deep-search
+==================================
+
+Base: Barromax 2.3 enviada pelo utilizador.
+Esta revisão mantém o nome/versionamento 2.4 e acumula as otimizações
+estruturais anteriores com pesquisa seletiva mais profunda.
+
+Otimizações estruturais já presentes
+------------------------------------
+
+1. Zobrist incremental Polyglot-compatible.
+2. Transposition Table fixa 2-way com geração/profundidade.
+3. Move picker por fases e parcialmente lazy.
+4. Quiescence com geração direta de capturas/promoções e evasões completas em xeque.
+5. Recapture extension.
+6. Early stop conservador (mínimo depth 10 / 3 iterações estáveis).
+7. AI ativa apenas para ordering na raiz.
+8. Queen = 950 cp.
+
+Novas melhorias de pesquisa profunda nesta revisão
+--------------------------------------------------
+
+1. Adaptive sacrifice verification
+   - Sacrifícios aparentes na raiz já não recebem sempre apenas +1 ply.
+   - Cavalo/bispo por peão: até +2 plies.
+   - Torre por peça menor: até +2 plies.
+   - Dama por material claramente inferior: até +3 plies.
+   - SEE muito negativo ou peça movida imediatamente exposta pode elevar a verificação até +3.
+   - O custo extra só é pago quando o lance arriscado se torna candidato a melhor lance.
+
+2. Principal Variation (PV) tracking + stability
+   - A PV é reconstruída da TT depois de cada depth completo.
+   - O early-stop exige estabilidade do best move, score E primeiros 4 plies da PV.
+
+3. Sem early-stop em linhas táticas
+   - Capturas, promoções, checks ou peça importante imediatamente exposta nos primeiros
+     plies da PV impedem a paragem antecipada.
+
+4. Singular Extensions
+   - Um TT move suficientemente profundo/forte é comparado com as alternativas.
+   - Se as alternativas falharem claramente, o TT move recebe +1 ply.
+   - Só é usado a partir de depth 7 e em janelas estreitas para controlar o custo.
+
+5. Selective Check Extensions
+   - Checks recebem +1 ply apenas quando deixam no máximo 2 respostas legais.
+   - Limitado a depth <= 8.
+
+6. Passed Pawn Extensions
+   - Avanços de peões passados na 6.ª/7.ª fila podem receber +1 ply.
+   - Limitado a depth <= 8.
+
+7. Countermove + Continuation History
+   - A engine aprende que resposta costuma funcionar depois do lance anterior.
+   - Esses lances sobem no move ordering sem substituir TT/killer moves.
+
+8. History malus
+   - Quiet moves pesquisados antes de um cutoff recebem penalização quando falham.
+   - History é limitado por gravity update para não crescer sem controlo.
+
+9. Capture History
+   - Capturas que provocam cutoffs recebem bónus por atacante/casa/vítima.
+   - É usado em conjunto com SEE/MVV-LVA, não em substituição.
+
+10. Fast Eval para pruning
+    - Material + par de bispos + tempo, com cache próprio.
+    - Serve apenas como pré-filtro de RFP/null/futility.
+    - RFP/futility/null continuam a exigir avaliação completa antes de um corte importante,
+      reduzindo o risco de pruning baseado numa avaliação demasiado simples.
+
+Objetivo
+--------
+
+Aumentar profundidade útil, não apenas o número mostrado como "depth".
+Em especial, a engine deve olhar mais fundo antes de aceitar sacrifícios como:
+- cavalo/bispo por 1-2 peões;
+- torre por peça menor;
+- dama por torre + compensação incerta.
+
+Esses sacrifícios continuam permitidos quando a pesquisa profunda os justifica.
+
+Testes recomendados
+-------------------
+
+python test_engine.py
+python test_see.py
+python test_23_optimizations.py
+python test_24_optimizations.py
+python benchmark_depth.py
+
+Para comparar versões no Arena, usar o mesmo controlo de tempo, Hash, cores alternadas
+e apenas uma partida simultânea por processo.
